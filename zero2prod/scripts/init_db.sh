@@ -58,17 +58,17 @@ done
 export DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 echo "Using DATABASE_URL=$DATABASE_URL"
 
+# Enable pgcrypto extension
+psql "$DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+
 # Create database if needed
 sqlx database create
 
-# Run migrations only if folder exists
+# Run migrations
 if [ -d "migrations" ]; then
   sqlx migrate run
   >&2 echo "Migrations applied successfully!"
 else
   >&2 echo "No migrations folder found, skipping migrations."
 fi
-
->&2 echo "Database setup complete!"
-
 

@@ -6,11 +6,16 @@ edition = "2024"
 [dependencies]
 actix-web = "4.12.1"
 config = "0.15.19"
+env_logger = "0.11.8"
 reqwest = "0.13.1"
 serde = { version = "1.0.228", features = ["derive"] }
-sqlx = { version = "0.8.6", default-features=false, features = ["postgres", "runtime-tokio-rustls", "macros", "uuid", "chrono", "migrate"] }
-sqlx-cli = { version = "0.8.6", default-features = false, features = [ "rustls", "postgres"] }
-tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
+sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "runtime-tokio-rustls", "macros", "uuid", "chrono", "migrate"] }
+sqlx-cli = { version = "0.8.6", default-features = false, features = ["rustls", "postgres"] }
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+tracing = { version = "0.1.44", features = ["log"] }
+tracing-actix-web = "0.7.21"
+tracing-bunyan-formatter = "0.3.10"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.22", features = ["registry", "env-filter"] }
+uuid = { version = "1.20.0", features = ["v4"] }
 
