@@ -1,41 +1,53 @@
-#[derive(serde::Deserialize)]
+use serde::Deserialize;
+use std::env;
+
+#[derive(Deserialize)]
 pub struct Settings {
+    pub application: ApplicationSettings,
     pub database: DatabaseSettings,
-    pub application_port: u16,
 }
 
+#[derive(Deserialize)]
+pub struct ApplicationSettings {
+    pub port: u16,
+    pub run_migrations: bool,
+}
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
-    pub port:  u16,
     pub host: String,
+    pub port: u16,
     pub database_name: String,
-}
-
-pub fn get_configuration() -> Result<Settings, config::ConfigError> {
-    //initialise our configuration reader
-    let settings = config::Config::builder()
-        .add_source(config::File::new(
-                "configuration/configuration.yaml",
-                config::FileFormat::Yaml,
-        ))
-        .build()?;
-    settings.try_deserialize::<Settings>()
 }
 
 impl DatabaseSettings {
     pub fn connection_string(&self) -> String {
         format!(
             "postgres://{}:{}@{}:{}/{}",
-            self.username,
-            self.password,
-            self.host,
-            self.port,
-            self.database_name
+            self.username, self.password, self.host, self.port, self.database_name
         )
     }
 }
 
+/// Load configuration entirely from environment variables
+pub fn get_configuration() -> Result<Settings, Box<dyn std::error::Error>> {
+    let application = ApplicationSettings {
+        port: env::var("APP_PORT")?.parse()?,
+        run_migrations: env::var("APP_RUN_MIGRATIONS")?.parse()?,
+    };
 
+    let database = DatabaseSettings {
+        username: env::var("DB_USER")?,
+        password: env::var("DB_PASSWORD")?,
+        host: env::var("DB_HOST")?,
+        port: env::var("DB_PORT")?.parse()?,
+        database_name: env::var("DB_NAME")?,
+    };
+
+    Ok(Settings {
+        application,
+        database,
+    })
+}
