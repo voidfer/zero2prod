@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      network: host               # keeps your build working
+      network: host
     image: zero2prod
     container_name: zero2prod_app
     restart: unless-stopped
@@ -14,10 +14,10 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: password
-      DB_NAME: newsletter
-      APP_PORT: 8000
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      APP_PORT: ${APP_PORT}
       APP_RUN_MIGRATIONS: "true"
     depends_on:
       db:
@@ -30,23 +30,23 @@ services:
       start_period: 30s
 
   db:
-    image: postgres:16            # ← Changed from alpine to full Debian-based
+    image: postgres:16
     container_name: zero2prod_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: newsletter
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5433:5432"               # optional, for local psql access
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}"]
       interval: 5s
       timeout: 5s
-      retries: 10                 # increased retries for slower first-start
-      start_period: 20s           # give more time for init
+      retries: 10
+      start_period: 20s
 
 volumes:
   pgdata:
