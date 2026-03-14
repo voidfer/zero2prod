@@ -2,14 +2,19 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
 
+use reqwest::Client;
+use wiremock::MockServer;
+
 use zero2prod::configuration::{get_configuration, DatabaseSettings};
 use zero2prod::startup::run;
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
+use zero2prod::email_client::EmailClient;
 
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
-    pub client: reqwest::Client,
+    pub client: Client,
+    pub email_server: MockServer,
 }
 
 fn initialize_tracing() {
@@ -66,24 +71,36 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
 pub async fn spawn_app() -> TestApp {
     initialize_tracing();
 
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .expect("Failed to bind random port");
+    let email_server = MockServer::start().await;
+
+    let listener =
+        TcpListener::bind("127.0.0.1:0")
+            .expect("Failed to bind random port");
 
     let port = listener.local_addr().unwrap().port();
 
-    let configuration = get_configuration()
-        .expect("Failed to read configuration");
+    let configuration =
+        get_configuration().expect("Failed to read configuration");
 
-    let db_pool = configure_database(&configuration.database).await;
+    let db_pool =
+        configure_database(&configuration.database).await;
 
-    let server = run(listener, db_pool.clone())
-        .expect("Failed to start server");
+    let email_client = EmailClient::new(
+        email_server.uri(),
+        "test@example.com".to_string(),
+        "test-token".to_string(),
+    );
+
+    let server =
+        run(listener, db_pool.clone(), email_client)
+            .expect("Failed to start server");
 
     tokio::spawn(server);
 
     TestApp {
         address: format!("http://127.0.0.1:{}", port),
         db_pool,
-        client: reqwest::Client::new(),
+        client: Client::new(),
+        email_server,
     }
 }
