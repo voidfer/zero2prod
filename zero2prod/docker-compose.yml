@@ -28,6 +28,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # <-- added for Linux Docker
 
   db:
     image: postgres:16

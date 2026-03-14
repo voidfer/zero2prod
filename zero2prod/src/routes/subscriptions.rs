@@ -1,3 +1,4 @@
+use crate::email_client::EmailClient;
 use actix_web::{web, HttpResponse};
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -14,7 +15,7 @@ pub struct FormData {
 
 #[instrument(
     name = "Adding a new subscriber",
-    skip(form, pool),
+    skip(form, pool, email_client),
     fields(
         subscriber_email = %form.email,
         subscriber_name = %form.name
@@ -23,8 +24,10 @@ pub struct FormData {
 pub async fn subscribe(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
+    email_client: web::Data<EmailClient>,
 ) -> HttpResponse {
 
+    // 1️⃣ Save subscriber
     let subscriber_id = match insert_subscriber(&pool, &form).await {
         Ok(id) => id,
         Err(e) => {
@@ -33,10 +36,27 @@ pub async fn subscribe(
         }
     };
 
+    // 2️⃣ Generate token
     let token = generate_token();
 
+    // 3️⃣ Store token
     if let Err(e) = store_token(&pool, subscriber_id, &token).await {
         error!("Failed to store confirmation token: {:?}", e);
+        return HttpResponse::InternalServerError().finish();
+    }
+
+    // 4️⃣ Build confirmation link
+    let confirmation_link = format!(
+        "http://localhost:8000/subscriptions/confirm?subscription_token={}",
+        token
+    );
+
+    // 5️⃣ Send confirmation email
+    if let Err(e) = email_client
+        .send_confirmation_email(&form.email, &confirmation_link)
+        .await
+    {
+        error!("Failed to send confirmation email: {:?}", e);
         return HttpResponse::InternalServerError().finish();
     }
 
@@ -57,7 +77,7 @@ async fn insert_subscriber(
     let subscriber_id = Uuid::new_v4();
 
     sqlx::query(
-        "INSERT INTO subscriptions (id, email, name, subscribed_at, status) \
+        "INSERT INTO subscriptions (id, email, name, subscribed_at, status)
          VALUES ($1, $2, $3, now(), 'pending_confirmation')"
     )
     .bind(subscriber_id)
@@ -94,7 +114,7 @@ async fn store_token(
 ) -> Result<(), sqlx::Error> {
 
     sqlx::query(
-        "INSERT INTO subscription_tokens (subscription_token, subscriber_id) \
+        "INSERT INTO subscription_tokens (subscription_token, subscriber_id)
          VALUES ($1, $2)"
     )
     .bind(token)
